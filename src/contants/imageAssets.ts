@@ -1,0 +1,5 @@
+
+export const imageURL = {
+
+    TLImage : "https://lh3.googleusercontent.com/aida-public/AB6AXuCHw0vkHx4RaUs3BhdcBizHTbVH4TWLdDj0M_ZnuYygsWwUA8-e6_WTvv00yd_xPZFuZnCFMpTqoHH8gtD8R6wSdpV7cfVx9LSKGBS6bmIpAp1mPpmkWnGMxIRtXdcNZZPddQAbUetA-yaPL8t872hjzYKJ1uQNVPvnc_ujL9hnnTtFu3d4Hc_CDv6wzM_LKOeDfxavCfoe5Q9tx8oc_2PjEzk3VzKDMnzrIcWo6usq8PKARcJPRiy53Q5UNVCO6RRhDHSD46DkOeWX"
+} as const;
