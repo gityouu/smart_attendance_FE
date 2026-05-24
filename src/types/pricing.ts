@@ -25,15 +25,15 @@ interface pricingTier {
 export const pricingTiers: pricingTier[] = [
     {
         id: 'free',
-        name: 'Ad-Hoc Educator',
+        name: 'Ad-Hoc / Single Session',
         badge: 'No Account Required',
-        description: 'Perfect for individual lecturers, TAs, and single-class trials.',
+        description: 'Perfect for individual lecturers, lab trials, and one-off team seminars.',
         priceMonthly: 0,
         priceAnnual: 0,
         ctaText: 'Launch Instant Session',
         ctaVariant: 'outline',
         features: [
-            'Up to 25 students per session',
+            'Up to 100 attendees per session',
             '30s rotating dynamic QR tokens',
             'Browser GPS geofencing (50m)',
             'Hardware device lock',
@@ -43,41 +43,41 @@ export const pricingTiers: pricingTier[] = [
     },
     {
         id: 'pro',
-        name: 'Pro Department',
+        name: 'Pro Department & Teams',
         badge: 'Most Popular',
-        description: 'For faculty and active educators running regular weekly courses.',
+        description: 'For faculty, university depts, and corporate trainers hosting regular workshops.',
         priceMonthly: 19,
         priceAnnual: 15,
         popular: true,
         ctaText: 'Start 14-Day Trial',
         ctaVariant: 'solid',
         features: [
-            'Up to 400 students per session',
+            'Up to 600 attendees per session',
             'All anti-proxy security features',
-            'Live Lecturer Monitoring Dashboard',
+            'Live Presenter & Instructor Dashboard',
             'Persistent session history & archives',
             'Custom GPS radius (15m - 100m)',
             'Duplicate device attempt flagging',
-            'Direct Excel / CSV gradebook exports'
+            'Direct Excel / CSV gradebook & roster exports'
         ]
     },
     {
         id: 'campus',
-        name: 'Campus Enterprise',
-        badge: 'Full Institution',
-        description: 'For university-wide rollouts, large exam halls, and multi-faculty depts.',
+        name: 'Institution & Enterprise',
+        badge: 'Full Organization',
+        description: 'For university-wide rollouts, mandatory corporate compliance, and exam halls.',
         priceMonthly: 'Custom',
         priceAnnual: 'Custom',
         ctaText: 'Contact Enterprise',
         ctaVariant: 'outline',
         features: [
-            'Unlimited students per session (1,000+)',
-            'Unlimited concurrent halls & classes',
-            'Single Sign-On (SSO / SAML / Google)',
+            'Unlimited attendees per session (1,000+)',
+            'Unlimited concurrent halls, auditoriums & workshops',
+            'Single Sign-On (SSO / SAML / Okta / Google)',
             'Canvas, Blackboard, & Moodle LMS sync',
-            'Department Dean analytics portal',
-            'Custom SLA & dedicated support rep',
-            'Official invoice & PO billing'
+            'Immutable compliance & audit trail logging',
+            'Department Dean & Corporate HR analytics portal',
+            'Custom SLA, dedicated support & PO billing'
         ]
     }
 ];

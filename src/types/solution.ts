@@ -29,7 +29,7 @@ export const solutionsData: Record<SolutionTabId, SolutionTab> = {
         bullets: [
             'Dynamic 30-second token rotation stops screenshots from being forwarded in class group chats.',
             'High-precision GPS geofencing confirms check-ins originate inside the lecture hall, not from student dorms.',
-            'Hardware UUID binding blocks single students from signing in for multiple absent friends on one smartphone.'
+            'Hardware binding blocks single students from signing in for multiple absent friends on one smartphone.'
         ]
     },
     corporate: {
