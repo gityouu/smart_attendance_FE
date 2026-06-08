@@ -1,7 +1,61 @@
-import React from "react";
+import React, { useState } from 'react';
+import { toast } from "sonner";
+import { getBrowserCoordinates } from "../../utils/geo";
+import { createSessionApi } from "../../api/sessionApi";
+import { FormProps } from "../../types/attendance";
+import { formatUserErrorMessage } from "../../context/errorContext";
 
-export default function Form() {
-    return(
+export default function Form({ onSessionCreated }: FormProps) {
+    const [courseName, setCourseName] = useState('');
+    const [email, setEmail] = useState('');
+    const [durationMinutes, setDurationMinutes] = useState<number>(5);
+    const [gpsEnabled, setGpsEnabled] = useState(false);
+    const [strictDeviceId, setStrictDeviceId] = useState(true);
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            let centerLat: number | null = null;
+            let centerLong: number | null = null;
+
+            if (gpsEnabled) {
+                const coords = await getBrowserCoordinates();
+                centerLat = coords.lat;
+                centerLong = coords.long;
+            }
+
+            const session = await createSessionApi({
+                name: courseName,
+                ad_hoc_email: email,
+                duration_minutes: durationMinutes,
+                tier: 'free',
+                gps_enabled: gpsEnabled,
+                center_lat: centerLat,
+                center_long: centerLong,
+                allowed_radius_meters: 50,
+                strict_device_id: strictDeviceId,
+            });
+
+            toast.success('Session created successfully!', {
+                description: 'Your rotating dynamic QR code is now live.',
+            });
+
+            if (onSessionCreated) {
+                onSessionCreated(session);
+            }
+        } catch (err) {
+            toast.error('Could not start session', {
+                description: formatUserErrorMessage(err),
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
         <section className="flex-1 p-4 lg:p-6 bg-surface-container-lowest dark:bg-neutral-900">
             <header className="mb-10">
                 <h1 className="text-4xl font-extrabold text-on-surface dark:text-white tracking-tight mb-2">
@@ -12,7 +66,8 @@ export default function Form() {
                 </p>
             </header>
 
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-6" onSubmit={handleSubmit}>
+                {/* Course Name */}
                 <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-on-surface-variant dark:text-neutral-300 tracking-wider">
                         Course Name / Code / Meeting Title
@@ -21,9 +76,13 @@ export default function Form() {
                         className="w-full px-4 py-3 bg-surface-container-low dark:bg-neutral-800 border-0 dark:border dark:border-neutral-700 focus:ring-2 focus:ring-primary dark:focus:ring-blue-500 rounded-lg text-on-surface dark:text-white placeholder:text-outline dark:placeholder:text-neutral-500 transition-all form-input-shadow"
                         placeholder="e.g. CS101 - Introduction to Algorithms"
                         type="text"
+                        required
+                        value={courseName}
+                        onChange={(e) => setCourseName(e.target.value)}
                     />
                 </div>
 
+                {/* Presenter Email */}
                 <div className="space-y-1.5">
                     <div className="flex items-center space-x-2">
                         <label className="block text-xs font-bold text-on-surface-variant dark:text-neutral-300 tracking-wider">
@@ -40,49 +99,59 @@ export default function Form() {
                         className="w-full px-4 py-3 bg-surface-container-low dark:bg-neutral-800 border-0 dark:border dark:border-neutral-700 focus:ring-2 focus:ring-primary dark:focus:ring-blue-500 rounded-lg text-on-surface dark:text-white placeholder:text-outline dark:placeholder:text-neutral-500 transition-all form-input-shadow"
                         placeholder="lecturer@university.edu"
                         type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                     />
                 </div>
 
+                {/* Duration Select */}
                 <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-on-surface-variant dark:text-neutral-300 tracking-wider">
                         Session Duration
                     </label>
                     <div className="grid grid-cols-3 gap-3">
-                        <button
-                            type="button"
-                            className="py-2.5 px-4 rounded-lg text-sm font-semibold transition-all bg-primary dark:bg-blue-600 text-on-primary text-white"
-                        >
-                            5m
-                        </button>
-                        <button
-                            type="button"
-                            className="py-2.5 px-4 rounded-lg text-sm font-semibold transition-all bg-surface-container-highest dark:bg-neutral-800 text-on-surface dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                        >
-                            10m
-                        </button>
-                        <button
-                            type="button"
-                            className="py-2.5 px-4 rounded-lg text-sm font-semibold transition-all bg-surface-container-highest dark:bg-neutral-800 text-on-surface dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
-                        >
-                            15m
-                        </button>
+                        {[5, 10, 15].map((time) => (
+                            <button
+                                key={time}
+                                type="button"
+                                onClick={() => setDurationMinutes(time)}
+                                className={`py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                                    durationMinutes === time
+                                        ? 'bg-primary dark:bg-blue-600 text-white'
+                                        : 'bg-surface-container-highest dark:bg-neutral-800 text-on-surface dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                                }`}
+                            >
+                                {time}m
+                            </button>
+                        ))}
                     </div>
                 </div>
 
+                {/* Security & Verification Toggles */}
                 <div className="space-y-4 pt-4">
+                    {/* GPS Toggle */}
                     <div className="flex items-center justify-between">
                         <div>
                             <span className="text-sm font-semibold block text-on-surface dark:text-white">GPS Verification</span>
-                            <span className="text-xs text-on-surface-variant dark:text-neutral-400">Lock to classroom area</span>
+                            <span className="text-xs text-on-surface-variant dark:text-neutral-400">Lock to classroom area (50m)</span>
                         </div>
                         <button
                             type="button"
-                            className="w-11 h-6 rounded-full relative transition-colors bg-secondary dark:bg-blue-600"
+                            onClick={() => setGpsEnabled(!gpsEnabled)}
+                            className={`w-11 h-6 rounded-full relative transition-colors ${
+                                gpsEnabled ? 'bg-secondary dark:bg-blue-600' : 'bg-surface-container-highest dark:bg-neutral-700'
+                            }`}
                         >
-                            <span className="absolute top-1 right-1 bg-white w-4 h-4 rounded-full shadow-sm transition-all"></span>
+              <span
+                  className={`absolute top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${
+                      gpsEnabled ? 'right-1' : 'left-1'
+                  }`}
+              />
                         </button>
                     </div>
 
+                    {/* Strict Device ID Toggle */}
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-sm font-semibold text-on-surface dark:text-white">Strict Device ID (Anti-Proxy)</span>
@@ -90,22 +159,31 @@ export default function Form() {
                         </div>
                         <button
                             type="button"
-                            className="w-11 h-6 rounded-full relative transition-colors duration-200 bg-surface-container-highest dark:bg-neutral-700"
+                            onClick={() => setStrictDeviceId(!strictDeviceId)}
+                            className={`w-11 h-6 rounded-full relative transition-colors duration-200 ${
+                                strictDeviceId ? 'bg-secondary dark:bg-blue-600' : 'bg-surface-container-highest dark:bg-neutral-700'
+                            }`}
                         >
-                            <span className="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-all"></span>
+              <span
+                  className={`absolute top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ${
+                      strictDeviceId ? 'right-1' : 'left-1'
+                  }`}
+              />
                         </button>
                     </div>
                 </div>
 
+                {/* Submit Button */}
                 <div className="pt-6">
                     <button
-                        type="button"
-                        className="w-full py-4 bg-primary dark:bg-blue-600 hover:bg-primary/90 dark:hover:bg-blue-500 text-white font-bold rounded-lg transition-colors"
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-4 bg-primary dark:bg-blue-600 hover:bg-primary/90 dark:hover:bg-blue-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
-                        Generate Smart QR Code
+                        <span>{loading ? (gpsEnabled ? 'Acquiring GPS...' : 'Creating Session...') : 'Generate Smart QR Code'}</span>
                     </button>
                 </div>
             </form>
         </section>
-    )
+    );
 }
