@@ -15,6 +15,7 @@ export interface CreateSessionPayload {
     ad_hoc_email?: string;
     duration_minutes?: number;
     tier?: OrganizationTier;
+    host_hardware_uuid?: string;
     gps_enabled?: boolean;
     center_lat?: number | null;
     center_long?: number | null;
@@ -41,15 +42,24 @@ export interface CreateSessionResponse {
     };
 }
 
-export interface FormProps {
+interface FormProps {
     onSessionCreated?: (sessionData: CreateSessionResponse['data']) => void;
 }
 
-export interface QRCodeProps {
+export interface ExtendedFormProps extends FormProps {
+    onSessionReset?: () => void;
+}
+
+interface QRCodeProps {
     sessionId?: string;
     initialToken?: string;
     rotationIntervalSeconds?: number;
     onOpenDashboard?: () => void;
+}
+
+export interface ExtendedQRCodeProps extends QRCodeProps {
+    durationMinutes?: number;
+    tier?: OrganizationTier;
 }
 
 //Payload sent by a student scanning the QR
@@ -76,3 +86,17 @@ export interface StudentCheckInResponse {
     };
 }
 
+export interface CheckInFormProps {
+    studentId: string;
+    fullName: string;
+    onStudentIdChange: (val: string) => void;
+    onFullNameChange: (val: string) => void;
+}
+
+export interface CheckInLabelProps {
+    sessionName?: string;
+}
+
+export interface SuccessOverlayProps {
+    course?: string | undefined;
+}
