@@ -1,12 +1,7 @@
 import { CreateSessionPayload, CreateSessionResponse } from '../types/attendance';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-/**
- * Sends a creation request to POST /api/sessions and returns the verified session data.
- */
 export async function createSessionApi(payload: CreateSessionPayload): Promise<CreateSessionResponse['data']> {
-    const response = await fetch(`${API_BASE_URL}/sessions`, {
+    const response = await fetch('/api/sessions', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -15,17 +10,23 @@ export async function createSessionApi(payload: CreateSessionPayload): Promise<C
     });
 
     const text = await response.text();
-
-    let data;
-
+    let data: any = {};
     try {
         data = text ? JSON.parse(text) : {};
     } catch {
-        throw new Error('Our servers returned an invalid response. Please try again shortly.');
+        throw new Error('Unexpected response format from server.');
     }
 
     if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to create session.');
+        const error = new Error(data.message || 'Could not start session.') as Error & {
+            code?: string;
+            remaining_seconds?: number;
+            status?: number;
+        };
+        error.code = data.code;
+        error.remaining_seconds = data.remaining_seconds;
+        error.status = response.status;
+        throw error;
     }
 
     return data.data;
