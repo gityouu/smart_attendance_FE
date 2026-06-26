@@ -39,16 +39,21 @@ export default function SessionCreation() {
                     <div className="flex flex-col md:flex-row">
 
                         {/* Form Section */}
-                        <Form onSessionCreated={(session) => setCreatedSession(session)} />
+                        <Form
+                            onSessionCreated={(session) => setCreatedSession(session)}
+                            onSessionReset={() => setCreatedSession(null)}
+                        />
 
                         {/* QR Placeholder / Active Section */}
                         <QRCode
                             sessionId={createdSession?.session_id}
                             initialToken={createdSession?.initial_token}
-                            rotationIntervalSeconds={createdSession?.rotation_interval_seconds || 30}
+                            rotationIntervalSeconds={createdSession?.rotation_interval_seconds}
+                            durationMinutes={createdSession?.duration_minutes || 5}
+                            tier={createdSession?.tier || 'free'}
                             onOpenDashboard={() => {
                                 if (createdSession) {
-                                    navigate(`/live-session/${createdSession.session_id}`);
+                                    window.location.href = `/live-session/${createdSession.session_id}`;
                                 }
                             }}
                         />
