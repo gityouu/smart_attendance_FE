@@ -1,6 +1,6 @@
 import { CreateSessionPayload, CreateSessionResponse } from '../types/attendance';
 
-export async function createSessionApi(payload: CreateSessionPayload): Promise<CreateSessionResponse['data']> {
+export async function createSessionApi(payload: CreateSessionPayload): Promise<CreateSessionResponse> {
     const response = await fetch('/api/sessions', {
         method: 'POST',
         headers: {
@@ -9,13 +9,7 @@ export async function createSessionApi(payload: CreateSessionPayload): Promise<C
         body: JSON.stringify(payload),
     });
 
-    const text = await response.text();
-    let data: any = {};
-    try {
-        data = text ? JSON.parse(text) : {};
-    } catch {
-        throw new Error('Unexpected response format from server.');
-    }
+    const data = await response.json();
 
     if (!response.ok || !data.success) {
         const error = new Error(data.message || 'Could not start session.') as Error & {
@@ -31,4 +25,3 @@ export async function createSessionApi(payload: CreateSessionPayload): Promise<C
 
     return data.data;
 }
-
