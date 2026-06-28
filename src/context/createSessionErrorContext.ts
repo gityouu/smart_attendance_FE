@@ -24,3 +24,4 @@ export const formatUserErrorMessage = (error: unknown): string => {
 
     return 'Something unexpected happened while preparing your session. Please try again.';
 };
+
