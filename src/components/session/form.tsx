@@ -8,7 +8,8 @@ import { formatUserErrorMessage } from "../../context/createSessionErrorContext"
 
 const COOLDOWN_KEY = 'formally_host_cooldown_until';
 
-export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormProps) {
+export default function Form({ onSessionCreated, onSessionReset, isSessionActive = false, triggerCooldownSeconds }:
+    ExtendedFormProps) {
     const [courseName, setCourseName] = useState('');
     const [email, setEmail] = useState('');
     const [durationMinutes, setDurationMinutes] = useState<number>(5);
@@ -17,8 +18,14 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
     const [loading, setLoading] = useState(false);
     const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
 
-    // 1. Check existing cooldown on component mount from localStorage
+    // 1. Initialize or update cooldown whenever page mounts OR parent triggers a new cooldown
     useEffect(() => {
+        if (triggerCooldownSeconds && triggerCooldownSeconds > 0) {
+            setCooldownSeconds(triggerCooldownSeconds);
+            localStorage.setItem(COOLDOWN_KEY, String(Date.now() + triggerCooldownSeconds * 1000));
+            return;
+        }
+
         const storedUntil = localStorage.getItem(COOLDOWN_KEY);
         if (storedUntil) {
             const remaining = Math.ceil((Number(storedUntil) - Date.now()) / 1000);
@@ -28,9 +35,9 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
                 localStorage.removeItem(COOLDOWN_KEY);
             }
         }
-    }, []);
+    }, [triggerCooldownSeconds]);
 
-    // 2. Active countdown ticker
+    // 2. Single interval ticker: counts down and cleans up
     useEffect(() => {
         if (cooldownSeconds <= 0) return;
 
@@ -47,7 +54,8 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
         return () => clearInterval(interval);
     }, [cooldownSeconds]);
 
-    const startCooldown = (seconds: number) => {
+    // Helper to start cooldown from API error catches
+    const applyCooldown = (seconds: number) => {
         setCooldownSeconds(seconds);
         localStorage.setItem(COOLDOWN_KEY, String(Date.now() + seconds * 1000));
     };
@@ -93,6 +101,10 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
                 description: 'Your rotating dynamic QR code is now live.',
             });
 
+            // Clear inputs on live activation
+            setCourseName('');
+            setEmail('');
+
             if (onSessionCreated) {
                 onSessionCreated(session);
             }
@@ -112,12 +124,11 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
                 errorMsg.includes('free tier limit');
 
             if (apiError.remaining_seconds && apiError.remaining_seconds > 0) {
-                startCooldown(apiError.remaining_seconds);
+                applyCooldown(apiError.remaining_seconds);
             } else if (isCooldownError) {
-                // Parse minutes if present in error string (e.g. "wait 58 minute(s)")
                 const match = errorMsg.match(/(\d+)\s*minute/);
                 const fallbackSecs = match ? Number(match[1]) * 60 : 3600;
-                startCooldown(fallbackSecs);
+                applyCooldown(fallbackSecs);
             }
 
             toast.error('Could not start session', {
@@ -127,6 +138,8 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
             setLoading(false);
         }
     };
+
+    const isFormLocked = isSessionActive || cooldownSeconds > 0;
 
     return (
         <section className="flex-1 p-4 lg:p-6 bg-surface-container-lowest dark:bg-neutral-900">
@@ -255,14 +268,20 @@ export default function Form({ onSessionCreated, onSessionReset }: ExtendedFormP
                 <div className="pt-6">
                     <button
                         type="submit"
-                        disabled={loading || cooldownSeconds > 0}
+                        disabled={loading || isFormLocked}
                         className={`w-full py-4 text-white font-bold rounded-lg transition-all flex items-center justify-center space-x-2 ${
-                            cooldownSeconds > 0
-                                ? 'bg-neutral-500 dark:bg-neutral-800 cursor-not-allowed opacity-90'
-                                : 'bg-primary dark:bg-blue-600 hover:bg-primary/90 dark:hover:bg-blue-500 disabled:opacity-50'
+                            isSessionActive
+                                ? 'bg-neutral-600 dark:bg-neutral-800 cursor-not-allowed opacity-90'
+                                : cooldownSeconds > 0
+                                    ? 'bg-neutral-500 dark:bg-neutral-800 cursor-not-allowed opacity-90'
+                                    : 'bg-primary dark:bg-blue-600 hover:bg-primary/90 dark:hover:bg-blue-500 disabled:opacity-50'
                         }`}
                     >
-                        {cooldownSeconds > 0 ? (
+                        {isSessionActive ? (
+                            <span className="flex items-center">
+                                Live Session in progress
+                            </span>
+                        ) : cooldownSeconds > 0 ? (
                             <span className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-sm">schedule</span>
                                 Cooldown Active: Available in {formatTimer(cooldownSeconds)}
