@@ -26,40 +26,34 @@ export interface CreateSessionPayload {
 
 //Response returned after session creation
 export interface CreateSessionResponse {
-    success: boolean;
-    data: {
-        session_id: string;
-        name: string;
-        tier: OrganizationTier;
-        status: 'active' | 'completed' | 'expired';
-        initial_token: string;
-        rotation_interval_seconds: number;
-        duration_minutes: number;
-        starts_at: string;
-        ends_at: string;
-        gps_enabled: boolean;
-        strict_device_id: boolean;
-    };
+    session_id: string;
+    name: string;
+    tier: OrganizationTier;
+    status: 'active' | 'completed' | 'expired';
+    initial_token: string;
+    rotation_interval_seconds: number;
+    duration_minutes: number;
+    starts_at: string;
+    ends_at: string;
+    gps_enabled: boolean;
+    strict_device_id: boolean;
 }
 
-interface FormProps {
-    onSessionCreated?: (sessionData: CreateSessionResponse['data']) => void;
-}
-
-export interface ExtendedFormProps extends FormProps {
+export interface ExtendedFormProps {
+    onSessionCreated: (session: CreateSessionResponse) => void;
     onSessionReset?: () => void;
+    isSessionActive?: boolean;
+    triggerCooldownSeconds?: number;
 }
 
-interface QRCodeProps {
+export interface ExtendedQRCodeProps {
     sessionId?: string;
     initialToken?: string;
     rotationIntervalSeconds?: number;
-    onOpenDashboard?: () => void;
-}
-
-export interface ExtendedQRCodeProps extends QRCodeProps {
     durationMinutes?: number;
     tier?: OrganizationTier;
+    onSessionExpired?: () => void;
+    onOpenDashboard?: () => void;
 }
 
 //Payload sent by a student scanning the QR
