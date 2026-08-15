@@ -33,7 +33,7 @@ export const pricingTiers: pricingTier[] = [
         ctaText: 'Launch Instant Session',
         ctaVariant: 'outline',
         features: [
-            'Up to 100 attendees per session',
+            'Up to 50 attendees per session',
             '30s rotating dynamic QR tokens',
             'Browser GPS geofencing (50m)',
             'Hardware device lock',
@@ -49,7 +49,7 @@ export const pricingTiers: pricingTier[] = [
         priceMonthly: 19,
         priceAnnual: 15,
         popular: true,
-        ctaText: 'Start 14-Day Trial',
+        ctaText: 'Start a 3-Day Trial',
         ctaVariant: 'solid',
         features: [
             'Up to 600 attendees per session',
