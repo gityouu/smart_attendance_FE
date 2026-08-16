@@ -1,3 +1,5 @@
+import { AudienceType } from "./audience";
+
 //Core Tier Definition
 export type OrganizationTier = 'free' | 'pro' | 'enterprise';
 
@@ -44,6 +46,7 @@ export interface ExtendedFormProps {
     onSessionReset?: () => void;
     isSessionActive?: boolean;
     triggerCooldownSeconds?: number;
+    audience?: AudienceType;
 }
 
 export interface ExtendedQRCodeProps {
@@ -52,12 +55,13 @@ export interface ExtendedQRCodeProps {
     rotationIntervalSeconds?: number;
     durationMinutes?: number;
     tier?: OrganizationTier;
+    audience?: AudienceType;
     onSessionExpired?: () => void;
     onOpenDashboard?: () => void;
 }
 
 //Payload sent by a student scanning the QR
-export interface StudentCheckInPayload {
+export interface CheckInPayload {
     session_id: string;
     student_identifier: string;
     student_name: string;
@@ -68,7 +72,7 @@ export interface StudentCheckInPayload {
 }
 
 //Response returned from check-in
-export interface StudentCheckInResponse {
+export interface CheckInResponse {
     success: boolean;
     message: string;
     incident_type?: FraudIncidentType;
@@ -81,6 +85,7 @@ export interface StudentCheckInResponse {
 }
 
 export interface CheckInFormProps {
+    audience?: AudienceType;
     studentId: string;
     fullName: string;
     onStudentIdChange: (val: string) => void;
