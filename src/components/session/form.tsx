@@ -5,11 +5,12 @@ import { getOrCreateHardwareUUID } from "../../utils/device";
 import { createSessionApi } from "../../api/sessionApi";
 import { ExtendedFormProps } from "../../types/attendance";
 import { formatUserErrorMessage } from "../../context/createSessionErrorContext";
+import { formatTimer } from "../../utils/timerFormat";
 
 const COOLDOWN_KEY = 'formally_host_cooldown_until';
 
-export default function Form({ onSessionCreated, onSessionReset, isSessionActive = false, triggerCooldownSeconds }:
-    ExtendedFormProps) {
+export default function Form({ audience = 'school', onSessionCreated, onSessionReset, isSessionActive = false,
+                                 triggerCooldownSeconds }: ExtendedFormProps) {
     const [courseName, setCourseName] = useState('');
     const [email, setEmail] = useState('');
     const [durationMinutes, setDurationMinutes] = useState<number>(5);
@@ -17,6 +18,8 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
     const [strictDeviceId, setStrictDeviceId] = useState(true);
     const [loading, setLoading] = useState(false);
     const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+
+    const isCorporate = audience === 'corporate';
 
     // 1. Initialize or update cooldown whenever page mounts OR parent triggers a new cooldown
     useEffect(() => {
@@ -54,16 +57,9 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
         return () => clearInterval(interval);
     }, [cooldownSeconds]);
 
-    // Helper to start cooldown from API error catches
     const applyCooldown = (seconds: number) => {
         setCooldownSeconds(seconds);
         localStorage.setItem(COOLDOWN_KEY, String(Date.now() + seconds * 1000));
-    };
-
-    const formatTimer = (totalSecs: number): string => {
-        const m = Math.floor(totalSecs / 60);
-        const s = totalSecs % 60;
-        return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
     const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
@@ -101,7 +97,6 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                 description: 'Your rotating dynamic QR code is now live.',
             });
 
-            // Clear inputs on live activation
             setCourseName('');
             setEmail('');
 
@@ -111,7 +106,6 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
         } catch (err: unknown) {
             const apiError = err as Error & { remaining_seconds?: number; code?: string; status?: number };
 
-            // Revert QR code output to blank placeholder
             if (onSessionReset) {
                 onSessionReset();
             }
@@ -145,22 +139,24 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
         <section className="flex-1 p-4 lg:p-6 bg-surface-container-lowest dark:bg-neutral-900">
             <header className="mb-10">
                 <h1 className="text-4xl font-extrabold text-on-surface dark:text-white tracking-tight mb-2">
-                    New Session
+                    {isCorporate ? 'New Meeting' : 'New Session'}
                 </h1>
                 <p className="text-on-surface-variant dark:text-neutral-400 text-sm font-medium">
-                    No account needed. Fill in the details and start tracking.
+                    {isCorporate
+                        ? 'No account needed. Set up your training or event check-in instantly.'
+                        : 'No account needed. Fill in the details and start tracking.'}
                 </p>
             </header>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
-                {/* Course Name */}
+                {/* Course Name / Meeting Title */}
                 <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-on-surface-variant dark:text-neutral-300 tracking-wider">
-                        Course Name / Code / Meeting Title
+                        {isCorporate ? 'Meeting / Seminar Title' : 'Course Name / Code'}
                     </label>
                     <input
                         className="w-full px-4 py-3 bg-surface-container-low dark:bg-neutral-800 border-0 dark:border dark:border-neutral-700 focus:ring-2 focus:ring-primary dark:focus:ring-blue-500 rounded-lg text-on-surface dark:text-white placeholder:text-outline dark:placeholder:text-neutral-500 transition-all form-input-shadow"
-                        placeholder="e.g. CS101 - Introduction to Algorithms"
+                        placeholder={isCorporate ? 'e.g. Q4 Compliance & Cybersecurity Briefing' : 'e.g. CS101 - Introduction to Algorithms'}
                         type="text"
                         required
                         disabled={cooldownSeconds > 0}
@@ -169,22 +165,24 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                     />
                 </div>
 
-                {/* Presenter Email */}
+                {/* Email */}
                 <div className="space-y-1.5">
                     <div className="flex items-center space-x-2">
                         <label className="block text-xs font-bold text-on-surface-variant dark:text-neutral-300 tracking-wider">
-                            Email
+                            {isCorporate ? 'Organizer Email' : 'Lecturer Email'}
                         </label>
                         <div className="group relative cursor-help">
                             <span className="material-symbols-outlined text-base text-primary dark:text-blue-400">info</span>
                             <div className="absolute bottom-full left-full -translate-x-[10%] mb-2 w-48 p-2 bg-inverse-surface dark:bg-neutral-800 text-inverse-on-surface dark:text-neutral-200 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg z-20">
-                                We’ll email your final attendance report here.
+                                {isCorporate
+                                    ? 'We’ll email your attendee roster and check-in report here.'
+                                    : 'We’ll email your final attendance report here.'}
                             </div>
                         </div>
                     </div>
                     <input
                         className="w-full px-4 py-3 bg-surface-container-low dark:bg-neutral-800 border-0 dark:border dark:border-neutral-700 focus:ring-2 focus:ring-primary dark:focus:ring-blue-500 rounded-lg text-on-surface dark:text-white placeholder:text-outline dark:placeholder:text-neutral-500 transition-all form-input-shadow"
-                        placeholder="lecturer@university.edu"
+                        placeholder={isCorporate ? 'organizer@company.com' : 'lecturer@university.edu'}
                         type="email"
                         required
                         disabled={cooldownSeconds > 0}
@@ -193,10 +191,10 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                     />
                 </div>
 
-                {/* Duration Select */}
+                {/* Duration */}
                 <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-on-surface-variant dark:text-neutral-300 tracking-wider">
-                        Session Duration
+                        {isCorporate ? 'Meeting Window' : 'Session Duration'}
                     </label>
                     <div className="grid grid-cols-3 gap-3">
                         {[5, 10, 15].map((time) => (
@@ -217,13 +215,15 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                     </div>
                 </div>
 
-                {/* Security & Verification Toggles */}
+                {/* Security Toggles */}
                 <div className="space-y-4 pt-4">
                     {/* GPS Toggle */}
                     <div className="flex items-center justify-between">
                         <div>
                             <span className="text-sm font-semibold block text-on-surface dark:text-white">GPS Verification</span>
-                            <span className="text-xs text-on-surface-variant dark:text-neutral-400">Lock to classroom area (50m)</span>
+                            <span className="text-xs text-on-surface-variant dark:text-neutral-400">
+                                {isCorporate ? 'Lock to conference room area (50m)' : 'Lock to classroom area (50m)'}
+                            </span>
                         </div>
                         <button
                             type="button"
@@ -245,7 +245,11 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-sm font-semibold text-on-surface dark:text-white">Strict Device ID (Anti-Proxy)</span>
-                            <span className="text-xs text-on-surface-variant dark:text-neutral-400">One submission per physical hardware device</span>
+                            <span className="text-xs text-on-surface-variant dark:text-neutral-400">
+                                {isCorporate
+                                    ? 'One submission per employee hardware device'
+                                    : 'One submission per physical hardware device'}
+                            </span>
                         </div>
                         <button
                             type="button"
@@ -264,7 +268,7 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                     </div>
                 </div>
 
-                {/* Submit Button with Dynamic Countdown */}
+                {/* Submit Button */}
                 <div className="pt-6">
                     <button
                         type="submit"
@@ -279,7 +283,7 @@ export default function Form({ onSessionCreated, onSessionReset, isSessionActive
                     >
                         {isSessionActive ? (
                             <span className="flex items-center">
-                                Live Session in progress
+                                {isCorporate ? 'Meeting Check-in in progress' : 'Live Session in progress'}
                             </span>
                         ) : cooldownSeconds > 0 ? (
                             <span className="flex items-center gap-2">
