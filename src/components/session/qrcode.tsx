@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { ExtendedQRCodeProps } from "../../types/attendance";
 
 export default function QRCode({ sessionId, initialToken, rotationIntervalSeconds = 30, durationMinutes = 5,
-                                   tier = 'free', onOpenDashboard, onSessionExpired,
+                                   tier = 'free', onOpenDashboard, onSessionExpired, audience = 'school',
                                }: ExtendedQRCodeProps) {
     const [currentToken, setCurrentToken] = useState<string>(initialToken || '');
     const [secondsRemaining, setSecondsRemaining] = useState<number>(rotationIntervalSeconds);
@@ -108,8 +108,11 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
     };
 
     const origin = window.location.origin;
+    // Accept audience?: 'school' | 'corporate' in your props (default 'school')
+    const tokenParamKey = audience === 'corporate' ? 'tc' : 'ts';
+
     const scanUrl = sessionId
-        ? `${origin}/student-check-in/${sessionId}?t=${encodeURIComponent(currentToken)}`
+        ? `${origin}/check-in/${sessionId}?${tokenParamKey}=${encodeURIComponent(currentToken)}`
         : '';
 
     return (
