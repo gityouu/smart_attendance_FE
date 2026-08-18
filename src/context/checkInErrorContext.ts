@@ -27,6 +27,10 @@ export const formatCheckInErrorMessage = (error: unknown): string => {
             return 'Your student ID could not be verified against the expected roster. Please re-check your student ID.';
         }
 
+        if (incident === 'capacity_exceeded') {
+            return 'Session full! The 50-person attendee limit for this free session has been reached.';
+        }
+
         // 2. Browser & Device Hardware / GPS Issues
         if (msg.includes('permission denied') || msg.includes('geolocation') ||
             msg.includes('location')) {
