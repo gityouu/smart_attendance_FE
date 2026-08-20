@@ -8,12 +8,24 @@ import { SuccessOverlay } from '../components/checkIn/successOverlay';
 import { submitCheckInApi, getPublicSessionInfoApi } from '../api/checkInApi';
 import { getOrCreateHardwareUUID } from '../utils/device';
 import { getBrowserCoordinates } from '../utils/geo';
-import { formatCheckInErrorMessage } from "../context/checkInErrorContext";
+import { formatCheckInErrorMessage } from '../context/checkInErrorContext';
+import { AudienceType } from "../types/audience";
 
-export default function StudentCheckIn() {
+export default function CheckIn() {
     const { sessionId } = useParams<{ sessionId: string }>();
     const [searchParams] = useSearchParams();
-    const token = searchParams.get('t') || '';
+
+    // 1. Detect Audience from URL parameter
+    // If ?tc= exists -> Corporate. Otherwise, default to School (?ts= or fallback ?t=)
+    const isCorporate = searchParams.has('tc');
+    const audience: AudienceType = isCorporate ? 'corporate' : 'school';
+
+    // 2. Read token regardless of whether it's tc, ts, or legacy t
+    const token =
+        searchParams.get('tc') ||
+        searchParams.get('ts') ||
+        searchParams.get('t') ||
+        '';
 
     const [sessionName, setSessionName] = useState<string>('');
     const [studentId, setStudentId] = useState('');
@@ -21,50 +33,40 @@ export default function StudentCheckIn() {
     const [loading, setLoading] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
 
-    // Fetch session title when component loads
     useEffect(() => {
         if (!sessionId) return;
-
         getPublicSessionInfoApi(sessionId)
-            .then((data) => {
-                setSessionName(data.name);
-            })
-            .catch(() => {
-                setSessionName('Active Session');
-            });
-    }, [sessionId]);
+            .then((data) => setSessionName(data.name))
+            .catch(() => setSessionName(isCorporate ? 'Live Meeting' : 'Live Class'));
+    }, [sessionId, isCorporate]);
 
     const handleCheckIn = async (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        if (!sessionId) {
-            toast.error('Invalid Session', {
-                description: 'Session identifier is missing from your link.',
+        if (!sessionId || !token) {
+            toast.error('Scan Required', {
+                description: 'Please scan the active dynamic QR code on the screen.',
             });
             return;
         }
 
-        if (!token) {
-            toast.error('Token Missing', {
-                description: 'Please scan the active dynamic QR code on the presenter screen.',
-            });
+        // Validation based on audience mode:
+        // School -> only Student ID is required
+        // Corporate -> Full Name is required, ID is optional
+        if (audience === 'school' && !studentId.trim()) {
+            toast.info('Required Field', { description: 'Please enter your Student ID.' });
             return;
         }
 
-        if (!studentId.trim() || !fullName.trim()) {
-            toast.info('Required Fields', {
-                description: 'Please provide both your Student ID and Full Name.',
-            });
+        if (audience === 'corporate' && !fullName.trim()) {
+            toast.info('Required Field', { description: 'Please enter your Full Name.' });
             return;
         }
 
         setLoading(true);
 
         try {
-            // 1. Get hardware UUID
             const hardwareUuid = getOrCreateHardwareUUID();
-
-            // 2. Acquire current GPS position if available
             let lat: number | undefined;
             let long: number | undefined;
 
@@ -73,14 +75,24 @@ export default function StudentCheckIn() {
                 lat = coords.lat;
                 long = coords.long;
             } catch {
-                // Location will be passed as undefined; backend checks if session requires GPS
+                // Background geo check
             }
 
-            // 3. Post verification payload
+            // Student identifier:
+            // School: uses studentId
+            // Corporate: uses badge ID if typed, otherwise falls back to full name
+            const identifier = audience === 'school'
+                ? studentId.trim()
+                : (studentId.trim() || fullName.trim());
+
+            const name = audience === 'corporate'
+                ? fullName.trim()
+                : studentId.trim();
+
             await submitCheckInApi({
                 session_id: sessionId,
-                student_identifier: studentId.trim(),
-                student_name: fullName.trim(),
+                student_identifier: identifier,
+                student_name: name,
                 hardware_uuid: hardwareUuid,
                 token: token.trim(),
                 lat,
@@ -98,7 +110,7 @@ export default function StudentCheckIn() {
     };
 
     if (isVerified) {
-        return <SuccessOverlay course="this session" />;
+        return <SuccessOverlay course={sessionName || (isCorporate ? 'this meeting' : 'this session')} />;
     }
 
     return (
@@ -109,19 +121,20 @@ export default function StudentCheckIn() {
 
                 <form onSubmit={handleCheckIn}>
                     <CheckInForm
+                        audience={audience}
                         studentId={studentId}
                         fullName={fullName}
                         onStudentIdChange={setStudentId}
                         onFullNameChange={setFullName}
                     />
 
-                    <section className="mt-10">
+                    <section className="mt-8">
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full h-16 bg-blue-600 hover:bg-blue-500 active:scale-[0.99] text-white rounded-2xl font-bold text-lg disabled:opacity-50 transition-all shadow-md flex items-center justify-center"
+                            className="w-full h-14 bg-blue-600 hover:bg-blue-500 active:scale-[0.99] text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all shadow-md flex items-center justify-center"
                         >
-                            {loading ? 'Verifying Presence...' : 'Check In'}
+                            {loading ? 'Verifying Presence...' : (isCorporate ? 'Check In to Meeting' : 'Check In')}
                         </button>
                     </section>
                 </form>
