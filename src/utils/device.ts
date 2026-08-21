@@ -1,44 +1,69 @@
-const HARDWARE_STORAGE_KEY = 'formally_device_uuid';
+const STORAGE_KEY = 'formally_device_uuid';
 
 /**
- * Universal UUID generator compatible with non-HTTPS mobile browsers.
+ * Builds a deterministic, persistent hardware fingerprint.
+ * Inspects device-level hardware constraints that remain identical
+ * even when iOS wipes the ephemeral Safari scanner sandbox.
  */
-const generateUUID = (): string => {
-    // 1. If available in secure context, use native randomUUID
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        return crypto.randomUUID();
+function getDeterministicHardwareHash(): string {
+    const nav = window.navigator;
+    const screen = window.screen;
+
+    // Collect fixed hardware properties
+    const hardwareSpecs = [
+        screen.width,
+        screen.height,
+        screen.colorDepth,
+        screen.pixelDepth || 24,
+        window.devicePixelRatio || 1,
+        nav.hardwareConcurrency || 4,
+        nav.maxTouchPoints || 0,
+        new Date().getTimezoneOffset(),
+        nav.platform || 'unknown',
+    ];
+
+    // Try to inspect Canvas rendering engine footprint
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+            const debugInfo = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info');
+            if (debugInfo) {
+                hardwareSpecs.push((gl as WebGLRenderingContext).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
+            }
+        }
+    } catch {
+        // If WebGL is unavailable, fallback to specs
     }
 
-    // 2. Fallback using crypto.getRandomValues if supported
-    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-        const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
-        bytes[6] = (bytes[6] & 0x0f) | 0x40; // RFC4122 variant
-        bytes[8] = (bytes[8] & 0x3f) | 0x80; // Version 4
-        return [...bytes]
-            .map((b, i) =>
-                ([4, 6, 8, 10].includes(i) ? '-' : '') + b.toString(16).padStart(2, '0')
-            )
-            .join('');
+    // 32-bit FNV-1a Hash
+    let hash = 0x811c9dc5;
+    const str = hardwareSpecs.join('###');
+    for (let i = 0; i < str.length; i++) {
+        hash ^= str.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
     }
 
-    // 3. Fallback for insecure LAN mobile HTTP environments
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-    });
-};
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
 
 /**
- * Retrieves or generates an immutable client hardware identifier
- * to prevent proxy submissions from the same physical phone.
+ * Returns a stable device UUID.
+ * Even if cookies and localStorage are completely purged on iOS scanner sheets,
+ * the hardware hash consistently produces the exact same identifier for that phone.
  */
 export const getOrCreateHardwareUUID = (): string => {
-    let uuid = localStorage.getItem(HARDWARE_STORAGE_KEY);
-    if (!uuid) {
-        uuid = `dev_${generateUUID()}`;
-        localStorage.setItem(HARDWARE_STORAGE_KEY, uuid);
-    }
-    return uuid;
+    const hardwareHash = getDeterministicHardwareHash();
+    const stableId = `dev_${hardwareHash}`;
+
+    try {
+        localStorage.setItem(STORAGE_KEY, stableId);
+    } catch {}
+
+    try {
+        document.cookie = `${STORAGE_KEY}=${stableId}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {}
+
+    return stableId;
 };
+
