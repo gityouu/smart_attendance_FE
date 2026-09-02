@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { ExtendedQRCodeProps } from "../../types/attendance";
+import { endSessionApi, refreshSessionTokenApi } from "../../api/sessionApi";
 
 export default function QRCode({ sessionId, initialToken, rotationIntervalSeconds = 30, durationMinutes = 5,
                                    tier = 'free', onOpenDashboard, onSessionExpired, audience = 'school',
                                }: ExtendedQRCodeProps) {
     const [currentToken, setCurrentToken] = useState<string>(initialToken || '');
-    const [secondsRemaining, setSecondsRemaining] = useState<number>(rotationIntervalSeconds);
+    const [, setSecondsRemaining] = useState<number>(rotationIntervalSeconds);
     const [isExpanded, setIsExpanded] = useState<boolean>(false);
     const [isExpired, setIsExpired] = useState<boolean>(false);
+    const [isEnding, setIsEnding] = useState<boolean>(false);
 
     // Track elapsed time for duration milestone toasts
     const hasWarnedRef = useRef<boolean>(false);
@@ -23,6 +25,7 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
             setIsExpired(false);
             hasWarnedRef.current = false;
             elapsedSecondsRef.current = 0;
+            setIsEnding(false);
         }
     }, [initialToken, rotationIntervalSeconds]);
 
@@ -32,32 +35,25 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
 
         const totalSessionSeconds = durationMinutes * 60;
 
-        // Define when to fire the reminder toast based on selected duration
-        let warningThresholdSeconds = 60; // Default: 1 min left for 5m
+        let warningThresholdSeconds = 60;
         if (durationMinutes === 10) {
-            warningThresholdSeconds = 180; // 3 mins left for 10m
+            warningThresholdSeconds = 180;
         } else if (durationMinutes === 15) {
-            warningThresholdSeconds = 300; // 5 mins left for 15m
+            warningThresholdSeconds = 300;
         }
 
-        const refreshNonce = async () => {
+        const handleTokenRefresh = async () => {
             try {
-                const res = await fetch(`/api/sessions/${sessionId}/token`);
-                if (res.status === 403 || res.status === 404) {
+                const nextToken = await refreshSessionTokenApi(sessionId);
+                setCurrentToken(nextToken);
+            } catch (err: unknown) {
+                const apiError = err as Error & { status?: number };
+                if (apiError.status === 403 || apiError.status === 404) {
                     setIsExpired(true);
                     if (onSessionExpired) {
                         onSessionExpired();
                     }
-                    return;
                 }
-                if (!res.ok) return;
-
-                const data = await res.json();
-                if (data.success && data.data?.token) {
-                    setCurrentToken(data.data.token);
-                }
-            } catch {
-                // Keep current token active on minor network hiccup
             }
         };
 
@@ -65,21 +61,21 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
             elapsedSecondsRef.current += 1;
             const remainingSessionSeconds = totalSessionSeconds - elapsedSecondsRef.current;
 
-            // Trigger the time-remaining reminder toast once
-            if (!hasWarnedRef.current && remainingSessionSeconds <= warningThresholdSeconds && remainingSessionSeconds > 0) {
+            if (!hasWarnedRef.current && remainingSessionSeconds <= warningThresholdSeconds && remainingSessionSeconds
+                > 0) {
                 hasWarnedRef.current = true;
                 const minutesLeft = Math.round(warningThresholdSeconds / 60);
 
                 toast.warning('Session Ending Soon', {
-                    description: `Your live session has ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''} remaining. Students should finalize their check-in.`,
+                    description: `Your live session has ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''} remaining. 
+                    Attendees should finalize their check-in.`,
                     duration: 10000,
                 });
             }
 
-            // Decrement dynamic QR token countdown
             setSecondsRemaining((prev) => {
                 if (prev <= 1) {
-                    refreshNonce();
+                    handleTokenRefresh();
                     return rotationIntervalSeconds;
                 }
                 return prev - 1;
@@ -87,12 +83,13 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [sessionId, rotationIntervalSeconds, isExpired, durationMinutes]);
+    }, [sessionId, rotationIntervalSeconds, isExpired, durationMinutes, onSessionExpired]);
 
     const handleDashboardClick = () => {
         if (tier === 'free') {
             toast.info('Pro Feature', {
-                description: 'Live student check-in dashboards are available on the Pro tier. Your full attendance CSV report will be emailed once this session concludes.',
+                description: 'Live check-in dashboards are available on the Pro tier. Your full attendance CSV report ' +
+                    'will be emailed once this session concludes.',
                 action: {
                     label: 'View Plans',
                     onClick: () => (window.location.href = '/pricing'),
@@ -107,8 +104,31 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
         }
     };
 
+    const handleEndSession = async () => {
+        if (!sessionId || isEnding) return;
+
+        setIsEnding(true);
+        try {
+            await endSessionApi(sessionId);
+            toast.success('Session Ended', {
+                description: 'Attendance report has been emailed to the host.',
+            });
+
+            // Notify parent to reset QR and trigger host cooldown
+            if (onSessionExpired) {
+                onSessionExpired();
+            }
+        } catch (err: unknown) {
+            const apiError = err as Error;
+            toast.error('Error ending session', {
+                description: apiError.message || 'Could not end session.',
+            });
+        } finally {
+            setIsEnding(false);
+        }
+    };
+
     const origin = window.location.origin;
-    // Accept audience?: 'school' | 'corporate' in your props (default 'school')
     const tokenParamKey = audience === 'corporate' ? 'tc' : 'ts';
 
     const scanUrl = sessionId
@@ -141,9 +161,6 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
                         <p className="text-white text-xl font-bold tracking-widest uppercase animate-pulse">
                             Scan to Check In
                         </p>
-                        <span className="text-neutral-400 text-xs font-mono">
-                            Refreshing token in {secondsRemaining}s
-                        </span>
                     </div>
                 </div>
             )}
@@ -196,27 +213,36 @@ export default function QRCode({ sessionId, initialToken, rotationIntervalSecond
                             </div>
                         )}
 
-                        <p className="text-xs text-on-surface-variant dark:text-neutral-400 font-mono">
-                            Rotating token in {secondsRemaining}s
-                        </p>
+                        <div className="flex flex-col items-center gap-2 pt-1">
+                            {/* Live Dashboard Button with Pro Lock Badge */}
+                            <button
+                                type="button"
+                                onClick={handleDashboardClick}
+                                className="group relative px-6 py-2.5 bg-neutral-900 dark:bg-neutral-800 text-white rounded-full font-bold flex items-center space-x-2 mx-auto hover:bg-neutral-800 dark:hover:bg-neutral-700 active:scale-95 transition-all shadow-md"
+                            >
+                                <span>Open Live Dashboard</span>
 
-                        {/* Live Dashboard Button with Pro Lock Badge */}
-                        <button
-                            type="button"
-                            onClick={handleDashboardClick}
-                            className="group relative px-6 py-2.5 bg-neutral-900 dark:bg-neutral-800 text-white rounded-full font-bold flex items-center space-x-2 mx-auto hover:bg-neutral-800 dark:hover:bg-neutral-700 active:scale-95 transition-all shadow-md"
-                        >
-                            <span>Open Live Dashboard</span>
+                                {tier === 'free' ? (
+                                    <span className="ml-1.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-amber-400 text-neutral-900 rounded-full flex items-center gap-1 shadow-xs">
+                                        <span className="material-symbols-outlined text-[12px]">lock</span>
+                                        PRO
+                                    </span>
+                                ) : (
+                                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                )}
+                            </button>
 
-                            {tier === 'free' ? (
-                                <span className="ml-1.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-amber-400 text-neutral-900 rounded-full flex items-center gap-1 shadow-xs">
-                                    <span className="material-symbols-outlined text-[12px]">lock</span>
-                                    PRO
-                                </span>
-                            ) : (
-                                <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                            )}
-                        </button>
+                            {/* End Session Early Button */}
+                            <button
+                                type="button"
+                                onClick={handleEndSession}
+                                disabled={isEnding || isExpired}
+                                className="px-5 py-2 text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full border border-red-200 dark:border-red-900/60 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                            >
+                                <span className="material-symbols-outlined text-base">stop_circle</span>
+                                <span>{isEnding ? 'Finalizing...' : 'End Session Early'}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
