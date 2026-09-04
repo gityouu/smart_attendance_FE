@@ -3,6 +3,8 @@ import { AudienceType } from "./audience";
 //Core Tier Definition
 export type OrganizationTier = 'free' | 'pro' | 'enterprise';
 
+export type SessionLifecycle = 'loading' | 'active' | 'expired' | 'completed' | 'not_found';
+
 //Incident & Fraud Error Types
 export type FraudIncidentType =
     | 'device_collision'
@@ -98,4 +100,9 @@ export interface CheckInLabelProps {
 
 export interface SuccessOverlayProps {
     course?: string | undefined;
+}
+
+export interface ExpiredOverlayProps {
+    sessionName?: string;
+    lifecycleState?: 'expired' | 'completed' | string;
 }
