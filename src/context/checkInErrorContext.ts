@@ -1,10 +1,12 @@
+import { CheckInApiError } from "../types/attendance";
+
 /**
  * Translates low-level check-in errors and backend fraud incident codes
  * into clean, friendly sentences for the student UI.
  */
 export const formatCheckInErrorMessage = (error: unknown): string => {
     if (error instanceof Error) {
-        const errorWithIncident = error as Error & { incident_type?: string };
+        const errorWithIncident = error as CheckInApiError;
         const incident = errorWithIncident.incident_type;
         const msg = error.message.toLowerCase();
 
@@ -47,4 +49,3 @@ export const formatCheckInErrorMessage = (error: unknown): string => {
 
     return 'Could not verify your attendance. Please scan the QR code on the screen again.';
 };
-
