@@ -7,18 +7,19 @@ import CheckInForm from '../components/checkIn/checkInForm';
 import { SuccessOverlay } from '../components/checkIn/successOverlay';
 import { ExpiredOverlay } from '../components/checkIn/expiredOverlay';
 import { NotFoundOverlay } from '../components/checkIn/notFoundOverlay';
+import { FailureOverlay } from '../components/checkIn/failureOverlay';
 import { submitCheckInApi, getPublicSessionInfoApi } from '../api/checkInApi';
 import { getOrCreateHardwareUUID } from '../utils/device';
 import { getBrowserCoordinates } from '../utils/geo';
 import { formatCheckInErrorMessage } from '../context/checkInErrorContext';
 import { AudienceType } from "../types/audience";
-import { SessionLifecycle } from "../types/attendance";
+import { CheckInApiError, HardFailureType, SessionLifecycle } from "../types/attendance";
 
 export default function CheckIn() {
     const { sessionId } = useParams<{ sessionId: string }>();
     const [searchParams] = useSearchParams();
 
-    // 1. Detect Audience from URL parameter
+    // 1. Audience Routing via URL tokens
     const isCorporate = searchParams.has('tc');
     const audience: AudienceType = isCorporate ? 'corporate' : 'school';
 
@@ -37,7 +38,10 @@ export default function CheckIn() {
     const [loading, setLoading] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
 
-    // Initial Guard: Validate session lifecycle state before rendering form
+    // Hard terminal failure state (switches view to FailureOverlay)
+    const [hardFailure, setHardFailure] = useState<HardFailureType | null>(null);
+
+    // Initial Guard: Validate session lifecycle
     useEffect(() => {
         if (!sessionId) {
             setLifecycle('not_found');
@@ -128,8 +132,26 @@ export default function CheckIn() {
             });
 
             setIsVerified(true);
-        } catch (err) {
-            toast.error('Verification Failed', {
+        } catch (err: unknown) {
+            const apiError = err as CheckInApiError;
+            const incident = apiError.incident_type;
+
+            // 1. HARD BLOCKS -> Mount persistent FailureOverlay
+            if (incident === 'device_collision' || incident === 'proxy_detected') {
+                setHardFailure('device_collision');
+                return;
+            }
+            if (incident === 'capacity_exceeded') {
+                setHardFailure('capacity_exceeded');
+                return;
+            }
+            if (incident === 'already_checked_in') {
+                setHardFailure('already_checked_in');
+                return;
+            }
+
+            // 2. SOFT / RETRIABLE ERRORS -> Toast feedback (stays on form)
+            toast.error('Verification Incomplete', {
                 description: formatCheckInErrorMessage(err),
             });
         } finally {
@@ -137,19 +159,33 @@ export default function CheckIn() {
         }
     };
 
-    // Overlay Guards
+    // 1. Hard anti-proxy or capacity failure
+    if (hardFailure) {
+        return (
+            <FailureOverlay
+                type={hardFailure}
+                course={sessionName}
+                onReset={hardFailure === 'device_collision' ? undefined : () => setHardFailure(null)}
+            />
+        );
+    }
+
+    // 2. Verified success
     if (isVerified) {
         return <SuccessOverlay course={sessionName || (isCorporate ? 'this meeting' : 'this session')} />;
     }
 
+    // 3. Invalid link
     if (lifecycle === 'not_found') {
         return <NotFoundOverlay />;
     }
 
+    // 4. Session expired / closed by host
     if (lifecycle === 'expired' || lifecycle === 'completed') {
         return <ExpiredOverlay sessionName={sessionName} lifecycleState={lifecycle} />;
     }
 
+    // 5. Active form
     return (
         <div className="bg-surface dark:bg-neutral-950 text-on-surface dark:text-neutral-100 font-body min-h-screen flex flex-col transition-colors duration-200">
             <CheckInHeader />
