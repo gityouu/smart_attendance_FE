@@ -5,6 +5,8 @@ export type OrganizationTier = 'free' | 'pro' | 'enterprise';
 
 export type SessionLifecycle = 'loading' | 'active' | 'expired' | 'completed' | 'not_found';
 
+export type HardFailureType = 'device_collision' | 'capacity_exceeded' | 'already_checked_in';
+
 //Incident & Fraud Error Types
 export type FraudIncidentType =
     | 'device_collision'
@@ -105,4 +107,16 @@ export interface SuccessOverlayProps {
 export interface ExpiredOverlayProps {
     sessionName?: string;
     lifecycleState?: 'expired' | 'completed' | string;
+}
+
+export interface CheckInApiError extends Error {
+    incident_type?: string;
+    code?: string;
+    status?: number;
+}
+
+export interface FailureOverlayProps {
+    type: HardFailureType;
+    course?: string;
+    onReset?: () => void;
 }
