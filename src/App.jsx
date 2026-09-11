@@ -9,6 +9,8 @@ import CheckIn from "./content/checkIn.tsx";
 import PricingPage from "./content/pricingPage";
 import ResourcesPage from "./content/resourcePage.tsx";
 import NotFoundPage from "./components/404.tsx";
+import ProLogin from "./content/proLogin.tsx";
+import LiveDash from "./components/pro/dashboard/liveDash.tsx";
 
 function App() {
     return(
@@ -24,6 +26,8 @@ function App() {
                         <Route path="/resources" element={<ResourcesPage />} />
                         <Route path="/session-creation" element={<SessionCreation />} />
                         <Route path="/check-in/:sessionId" element={<CheckIn />} />
+                        <Route path="/prologin" element={<ProLogin />} />
+                        <Route path="/dashboard" element={<LiveDash />} />
                     </Routes>
                 </Router>
             </ThemeProvider>
