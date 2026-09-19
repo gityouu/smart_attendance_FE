@@ -5,7 +5,7 @@ const STORAGE_KEY = 'formally_device_uuid';
  * Inspects device-level hardware constraints that remain identical
  * even when iOS wipes the ephemeral Safari scanner sandbox.
  */
-function getDeterministicHardwareHash(): string {
+export function getDeterministicHardwareHash(): string {
     const nav = window.navigator;
     const screen = window.screen;
 
