@@ -1,60 +1,25 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { signIn } from "../../lib/authClient";
+import React from "react";
 import LoginFoot from "./loginFoot";
+import { FormSecProps } from "../../../types/proLogin";
+import { useProLogin } from "../../../hooks/proLoginHook";
 
-export default function FormSec() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
+export default function FormSec({ onForgotPassword }: FormSecProps) {
 
-    const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
-        e.preventDefault();
-
-        if (!email.trim() || !password) {
-            toast.error('Missing Credentials', {
-                description: 'Please enter both your email and password.',
-            });
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            const { data, error } = await signIn.email({
-                email: email.trim(),
-                password,
-                rememberMe,
-            });
-
-            if (error) {
-                toast.error('Login Failed', {
-                    description: error.message || 'Invalid email or password. Please try again.',
-                });
-                return;
-            }
-
-            toast.success('Welcome back!', {
-                description: `Signed in as ${data.user.email}`,
-            });
-
-            // Redirect to host dashboard
-            navigate('/dashboard');
-        } catch (err: any) {
-            toast.error('Connection Error', {
-                description: err.message || 'Could not reach authentication server.',
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+    const {
+        email,
+        setEmail,
+        password,
+        setPassword,
+        showPassword,
+        setShowPassword,
+        rememberMe,
+        setRememberMe,
+        loading,
+        handleLogin,
+    } = useProLogin();
 
     return (
-        <section className="flex-1 flex flex-col justify-between p-6 sm:p-12 lg:p-16 overflow-y-auto">
+        <section className="flex-1 flex flex-col justify-between p-6 sm:p-12 lg:p-16 overflow-y-auto animate-in fade-in duration-300">
             {/* Mobile Top Logo */}
             <div className="flex lg:hidden items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -115,12 +80,13 @@ export default function FormSec() {
                             >
                                 Password
                             </label>
-                            <a
-                                href="/forgot-password"
+                            <button
+                                type="button"
+                                onClick={onForgotPassword}
                                 className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
                             >
                                 Forgot?
-                            </a>
+                            </button>
                         </div>
 
                         <div className="relative flex items-center">

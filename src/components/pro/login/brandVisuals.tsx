@@ -1,5 +1,5 @@
 import React from "react";
-import { imageURL } from "../../contants/imageAssets";
+import { imageURL } from "../../../contants/imageAssets";
 
 export default function BrandVisuals(){
     return(
