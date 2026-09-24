@@ -1,4 +1,14 @@
+import React from "react";
+
+//TODO: CHANGE THE GRADIENT TO MATCH OF THE ACTUAL LOGO COLOR
+
 export default function SessionFooter() {
+    const gradientStyle = {
+        backgroundImage: 'linear-gradient(90deg, #ff007f, #7f00ff)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        display: 'inline-block', // Ensures the background covers just the text
+    };
 
     return(
         <footer className="w-full bg-[#f6f3f2] dark:bg-neutral-900 border-t border-outline-variant/60 transition-colors">
@@ -10,7 +20,7 @@ export default function SessionFooter() {
                     <a className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-primary dark:hover:text-primary tracking-wider transition-colors" href="#">Terms of Service</a>
                 </div>
                 <div className="text-xs font-medium text-neutral-500 dark:text-neutral-400 tracking-wider mt-4 md:mt-0">
-                    © 2026 Formally SaaS. All rights reserved.
+                    © 2026 Formally SaaS By <span style={gradientStyle}>ByteBloom</span>. All rights reserved.
                 </div>
             </div>
         </footer>
